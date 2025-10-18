@@ -1,0 +1,138 @@
+x-common: &commons
+    platform: linux/amd64
+    deploy:
+        resources:
+            limits:
+                cpus: '1'
+                memory: 1G
+    mem_swappiness: 0
+    memswap_limit: 0
+    volumes:
+        - ./dags:/app/dags:ro
+
+x-airflow-vars: &airflow-vars
+    AIRFLOW_HOME: /app
+    AIRFLOW_WEBSERVER: airflow_webserver:8080
+    AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+    AIRFLOW__CELERY__BROKER_URL: "redis://queue:6379"
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql://airflow_db_user:airflow_db_pwd@airflow_db:5432/postgres
+
+
+services:
+    airflow_db:
+        container_name: airflow_db
+        image: postgres:18.0-trixie
+        env_file:
+            - .env
+        environment:
+            POSTGRES_USER: airflow_db_user
+            POSTGRES_DB: postgres
+            POSTGRES_PASSWORD: airflow_db_pwd
+        ports:
+            - "127.0.0.1:5433:5432"
+        <<: *commons
+        healthcheck:
+            test: ["CMD", "pg_isready", "-U", "airflow_db_user", "-d", "postgres"]
+            interval: 5s
+            retries: 15
+
+    airflow_db_migration:
+        container_name: airflow_db_migration
+        image: pybr25:latest
+        build:
+            context: .
+        command: [
+            "bash",
+            "-c",
+            "airflow db migrate && sleep 5 && airflow users create --username admin --password pwd --firstname Imin --lastname the-first --role Admin --email admin@example.org"
+        ]
+        env_file:
+            - .env
+        environment:
+            <<: *airflow-vars
+        depends_on:
+            airflow_db:
+                condition: service_healthy
+        <<: *commons
+
+    airflow_webserver:
+        container_name: airflow_webserver
+        image: pybr25:latest
+        build:
+            context: .
+        command: bash -c "airflow db check-migrations && airflow webserver"
+        env_file:
+            - .env
+        environment:
+            <<: *airflow-vars
+        ports:
+            - 127.0.0.1:8080:8080
+        depends_on:
+            airflow_db:
+                condition: service_healthy
+        <<: *commons
+
+    airflow_scheduler:
+        container_name: airflow_scheduler
+        image: pybr25:latest
+        build:
+            context: .
+        command: bash -c "airflow db check-migrations && airflow scheduler"
+        env_file:
+            - .env
+        environment:
+            <<: *airflow-vars
+        depends_on:
+            airflow_db:
+                condition: service_healthy
+        <<: *commons
+
+    queue:
+        container_name: queue
+        image: redis:8.2.2
+        ports:
+            - "127.0.0.1:6380:6379"
+        healthcheck:
+            test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+            interval: 5s
+            retries: 15
+        <<: *commons
+
+    flower:
+        container_name: flower
+        image: pybr25:latest
+        build:
+            context: .
+        command: [
+            "bash",
+            "-c",
+            "airflow db check-migrations && airflow celery flower"
+        ]
+        env_file:
+            - .env
+        environment:
+            <<: *airflow-vars
+        ports:
+            - "127.0.0.1:5555:5555"
+        depends_on:
+            airflow_db:
+                condition: service_healthy
+        <<: *commons
+
+    worker:
+        image: pybr25:latest
+        build:
+            context: .
+        command: [
+            "bash",
+            "-c",
+            "airflow db check-migrations && airflow celery worker --concurrency 2"
+        ]
+        env_file:
+            - .env
+        environment:
+            <<: *airflow-vars
+        depends_on:
+            airflow_db:
+                condition: service_healthy
+        <<: *commons

@@ -1,0 +1,25 @@
+[project]
+name = "airflow-pybr25"
+version = "0.1.0"
+description = "Projeto do tutorial de Airflow da Python Brasil 2025"
+readme = "README.md"
+requires-python = "~=3.13.0"
+dependencies = [
+    "apache-airflow[celery]==3.1.0",
+    "httpx>=0.28.1",
+    "pandas>=2.2.3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "pytest-httpx>=0.35.0",
+]
+
+[tool.pytest.ini_options]
+addopts = "-vvv --strict-markers"
+testpaths = ["tests"]
+log_level = "DEBUG"
+markers = [
+    'lento: indica que um teste é lento (cada caso de teste demora mais de 1 segundo)',
+]
