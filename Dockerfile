@@ -11,7 +11,3 @@ RUN pip install uv
 
 COPY pyproject.toml uv.lock /app/
 RUN uv sync --frozen
-
-COPY airflow.cfg /app/
-COPY plugins /app/plugins
-COPY config /app/config

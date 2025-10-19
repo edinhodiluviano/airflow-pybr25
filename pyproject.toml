@@ -5,7 +5,7 @@ description = "Projeto do tutorial de Airflow da Python Brasil 2025"
 readme = "README.md"
 requires-python = "~=3.13.0"
 dependencies = [
-    "apache-airflow[celery]==3.1.0",
+    "apache-airflow[celery,postgres]==3.1.0",
     "httpx>=0.28.1",
     "pandas>=2.2.3",
 ]
