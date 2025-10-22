@@ -145,13 +145,10 @@ services:
         command: [
             "bash",
             "-c",
-            "airflow db check-migrations && airflow celery worker --concurrency 1"
+            "sleep 5 && airflow db check-migrations && airflow celery worker --concurrency 1"
         ]
         env_file:
             - .env
         environment:
             <<: *airflow-vars
-        depends_on:
-            airflow_db:
-                condition: service_healthy
         <<: *commons
